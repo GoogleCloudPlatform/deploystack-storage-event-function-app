@@ -1,0 +1,9 @@
+PROJECT=scaler-attempt
+BUCKET=$PROJECT-bucket
+
+
+gcloud functions delete scaler -q
+
+gsutil rm -rf gs://$BUCKET	
+gsutil rb gs://$BUCKET	
+
