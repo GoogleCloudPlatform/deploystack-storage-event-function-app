@@ -1,6 +1,7 @@
 BASEDIR = $(shell pwd)
 PROJECT=scaler-attempt
 BUCKET = $(PROJECT)-bucket
+PORT_API=8080
 
 env:
 	gcloud config set project $(PROJECT)
@@ -22,3 +23,14 @@ test.files: clean.files
 
 test.duplicate: 
 	gsutil cp function/ColtReto.png gs://$(BUCKET)/uploads/ColtReto.png	
+
+cleanapi:
+	-docker stop scaler-goapi
+	-docker rm scaler-goapi
+
+api: cleanapi
+	cd app && docker build -t scaler-goapi .
+	docker run --name scaler-goapi --expose $(PORT_API) \
+	-p $(PORT_API):$(PORT_API)  -e PORT=$(PORT_API) -e BUCKET=$(BUCKET) \
+	-e GOOGLE_APPLICATION_CREDENTIALS=creds/creds.json -d scaler-goapi	
+	docker logs scaler-goapi	

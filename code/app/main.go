@@ -16,6 +16,7 @@ var cs CloudStorage
 
 func main() {
 	port := os.Getenv("PORT")
+	bucket := os.Getenv("BUCKET")
 
 	if port == "" {
 		port = "8080"
@@ -24,7 +25,7 @@ func main() {
 	fmt.Printf("Port: %s\n", port)
 
 	var err error
-	cs, err = NewCloudStorage("scaler-attempt-bucket")
+	cs, err = NewCloudStorage(bucket)
 	if err != nil {
 		log.Printf("failed to create client: %v", err)
 		return
