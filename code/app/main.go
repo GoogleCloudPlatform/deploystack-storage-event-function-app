@@ -35,7 +35,7 @@ func main() {
 	router.HandleFunc("/api/v1/image", createHandler).Methods(http.MethodPost)
 	router.HandleFunc("/api/v1/image/{id}", readHandler).Methods(http.MethodGet)
 	router.HandleFunc("/api/v1/image/{id}", deleteHandler).Methods(http.MethodDelete)
-	// router.HandleFunc("/api/v1/image/{id}", updateHandler).Methods(http.MethodPost, http.MethodPut)
+	router.HandleFunc("/api/v1/image/{id}", updateHandler).Methods(http.MethodPost, http.MethodPut)
 
 	headersOk := handlers.AllowedHeaders([]string{"X-Requested-With"})
 	originsOk := handlers.AllowedOrigins([]string{"*"})
@@ -83,6 +83,38 @@ func createHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeResponse(w, http.StatusCreated, "")
+	return
+}
+
+func updateHandler(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["id"]
+	r.ParseMultipartForm(10 << 20)
+	// FormFile returns the first file for the given key `myFile`
+	// it also returns the FileHeader so we can get the Filename,
+	// the Header and the size of the file
+	file, handler, err := r.FormFile("myFile")
+	if err != nil {
+		writeErrorMsg(w, fmt.Errorf("error retrieving file: %v", err))
+		return
+	}
+	defer file.Close()
+	log.Printf("ID: %+v\n", id)
+	log.Printf("Method: %+v\n", r.Method)
+	log.Printf("Uploaded File: %+v\n", handler.Filename)
+	log.Printf("File Size: %+v\n", handler.Size)
+	log.Printf("MIME Header: %+v\n", handler.Header)
+
+	if err := cs.Delete(id); err != nil {
+		writeErrorMsg(w, fmt.Errorf("error replacing file: %s", err))
+		return
+	}
+
+	if err := cs.Create(handler.Filename, file); err != nil {
+		writeErrorMsg(w, fmt.Errorf("image couldn't be created: %v", err))
+		return
+	}
+
+	writeResponse(w, http.StatusOK, "")
 	return
 }
 

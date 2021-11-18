@@ -22,5 +22,8 @@ perms: env
 
 
 
-test:
+test.create:
 	 curl -i -F 'myFile=@../function/RetoColt.png' http://localhost:8080/api/v1/image	
+
+test.update:
+	 curl -i -F 'myFile=@../function/RetoColt.png' http://localhost:8080/api/v1/image/RetoColtasdasd		 
