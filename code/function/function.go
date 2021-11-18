@@ -55,8 +55,24 @@ func OnFileUpload(ctx context.Context, e GCSEvent) error {
 			log.Printf("error: %s", err)
 			return err
 		}
+
+		if err := makePublic(ctx, e.Bucket, oPath); err != nil {
+			log.Printf("error: %s", err)
+			return err
+		}
+
+		if err := makePublic(ctx, e.Bucket, tPath); err != nil {
+			log.Printf("error: %s", err)
+			return err
+		}
+
 	}
 	return nil
+}
+
+func makePublic(ctx context.Context, bucket, file string) error {
+	obj := storageClient.Bucket(bucket).Object(file)
+	return obj.ACL().Set(ctx, storage.AllUsers, "READER")
 }
 
 // newPaths figures out the paths for both the original images and their
@@ -99,7 +115,7 @@ func exists(ctx context.Context, bucket, file string) (bool, error) {
 		return false, nil
 	}
 	if err != nil {
-		return false, fmt.Errorf("error checking for the existence of %s/%s: %s", bucket, file, err)
+		return false, fmt.Errorf("error checking existence of %s/%s: %s", bucket, file, err)
 	}
 
 	return true, nil
