@@ -56,7 +56,7 @@ func (cs CloudStorage) List() (CSFiles, error) {
 		if err != nil {
 			return i, fmt.Errorf("cannot create url from %s: %s", obj.MediaLink, err)
 		}
-		img := CSFile{obj.Name, u}
+		img := CSFile{obj.Name, cs.Bucket, u}
 		i = append(i, img)
 
 	}
@@ -65,8 +65,9 @@ func (cs CloudStorage) List() (CSFiles, error) {
 }
 
 type CSFile struct {
-	Name string
-	URL  *url.URL
+	Name   string
+	Bucket string
+	URL    *url.URL
 }
 
 type CSFiles []CSFile
@@ -88,10 +89,11 @@ func NewImages(fs CSFiles) (Images, error) {
 func (is *Images) Load(fs CSFiles) error {
 	for _, v := range fs {
 		if strings.Index(v.Name, "original.") > -1 {
-			base := filepath.Dir(v.Name)
-			name := strings.Replace(base, "processed/", "", 1)
-			o := v.URL.String()
-			t := strings.Replace(o, "original.", "thumbnail.", 1)
+			dir := filepath.Dir(v.Name)
+			base := filepath.Base(v.Name)
+			name := strings.Replace(dir, "processed/", "", 1)
+			o := fmt.Sprintf("https://storage.googleapis.com/%s/%s/%s", v.Bucket, dir, base)
+			t := fmt.Sprintf("https://storage.googleapis.com/%s/%s/%s", v.Bucket, dir, strings.Replace(base, "original.", "thumbnail.", 1))
 			i := Image{name, o, t}
 			*is = append(*is, i)
 		}
