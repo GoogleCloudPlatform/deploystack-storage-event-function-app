@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -76,9 +77,16 @@ func createHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer file.Close()
-	log.Printf("Uploaded File: %+v\n", handler.Filename)
-	log.Printf("File Size: %+v\n", handler.Size)
-	log.Printf("MIME Header: %+v\n", handler.Header)
+
+	mimemap := NewMimeMap([]string{"image/png", "image/jpeg", "image/gif"})
+
+	mimetype := handler.Header.Get("Content-Type")
+
+	if !mimemap.Valid(mimetype) {
+		mimelist := mimemap.List()
+		writeErrorMsg(w, fmt.Errorf("invalid image type, want one of %s got : %s", mimelist, mimetype))
+		return
+	}
 
 	if err := cs.Create(handler.Filename, file); err != nil {
 		writeErrorMsg(w, fmt.Errorf("image couldn't be created: %v", err))
@@ -87,6 +95,31 @@ func createHandler(w http.ResponseWriter, r *http.Request) {
 
 	writeResponse(w, http.StatusCreated, "")
 	return
+}
+
+type MimeMap map[string]bool
+
+func NewMimeMap(s []string) MimeMap {
+	m := make(MimeMap)
+	for _, v := range s {
+		m[v] = true
+	}
+	return m
+}
+
+func (m MimeMap) Valid(mimetype string) bool {
+	_, ok := m[mimetype]
+	return ok
+}
+
+func (m MimeMap) List() string {
+	var sb strings.Builder
+	for i := range m {
+		sb.WriteString(i)
+		sb.WriteString(", ")
+	}
+
+	return strings.TrimRight(sb.String(), ", ")
 }
 
 func updateHandler(w http.ResponseWriter, r *http.Request) {
@@ -101,11 +134,6 @@ func updateHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer file.Close()
-	log.Printf("ID: %+v\n", id)
-	log.Printf("Method: %+v\n", r.Method)
-	log.Printf("Uploaded File: %+v\n", handler.Filename)
-	log.Printf("File Size: %+v\n", handler.Size)
-	log.Printf("MIME Header: %+v\n", handler.Header)
 
 	if err := cs.Delete(id); err != nil {
 		writeErrorMsg(w, fmt.Errorf("error replacing file: %s", err))

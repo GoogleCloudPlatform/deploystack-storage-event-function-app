@@ -5,17 +5,21 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Image Gallery</title>
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@100;400;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <link rel="stylesheet" href="main.css">
     <script src="main.js"></script>
 </head>
 <body>
     <h1>Image Gallery</h1>
+    <div class="alert">Alerts Go here</div>
 
     <form method="post">
-        <input type="file" name="myFile" id="myFile">
-        <button>Upload</button>
-
-
+        <label class="file-label" for="myFile">
+            Select image to upload <span class="material-icons">image</span>
+            <input type="file" name="myFile" id="myFile">
+        </label>
+        <button class="upload" disabled>Upload <span class="material-icons">file_upload</span></button>
     </form>
 
     <div class="gallery"></div>
