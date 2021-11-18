@@ -32,7 +32,7 @@ func main() {
 
 	router := mux.NewRouter().StrictSlash(true)
 	router.HandleFunc("/api/v1/image", listHandler).Methods(http.MethodGet, http.MethodOptions)
-	// router.HandleFunc("/api/v1/image", createHandler).Methods(http.MethodPost)
+	router.HandleFunc("/api/v1/image", createHandler).Methods(http.MethodPost)
 	router.HandleFunc("/api/v1/image/{id}", readHandler).Methods(http.MethodGet)
 	router.HandleFunc("/api/v1/image/{id}", deleteHandler).Methods(http.MethodDelete)
 	// router.HandleFunc("/api/v1/image/{id}", updateHandler).Methods(http.MethodPost, http.MethodPut)
@@ -59,6 +59,30 @@ func listHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, is, http.StatusOK)
+	return
+}
+
+func createHandler(w http.ResponseWriter, r *http.Request) {
+	r.ParseMultipartForm(10 << 20)
+	// FormFile returns the first file for the given key `myFile`
+	// it also returns the FileHeader so we can get the Filename,
+	// the Header and the size of the file
+	file, handler, err := r.FormFile("myFile")
+	if err != nil {
+		writeErrorMsg(w, fmt.Errorf("error retrieving file: %v", err))
+		return
+	}
+	defer file.Close()
+	log.Printf("Uploaded File: %+v\n", handler.Filename)
+	log.Printf("File Size: %+v\n", handler.Size)
+	log.Printf("MIME Header: %+v\n", handler.Header)
+
+	if err := cs.Create(handler.Filename, file); err != nil {
+		writeErrorMsg(w, fmt.Errorf("image couldn't be created: %v", err))
+		return
+	}
+
+	writeResponse(w, http.StatusCreated, "")
 	return
 }
 

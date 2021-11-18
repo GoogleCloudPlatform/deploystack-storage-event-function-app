@@ -19,3 +19,8 @@ serviceaccount: env
 
 perms: env
 	gsutil iam ch 'serviceaccount:$(SAACCOUNTEMAIL):roles/storage.admin' gs://$(BUCKET)
+
+
+
+test:
+	 curl -i -F 'myFile=@../function/RetoColt.png' http://localhost:8080/api/v1/image	

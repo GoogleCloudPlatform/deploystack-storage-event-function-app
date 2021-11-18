@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"mime/multipart"
 	"net/url"
 	"path/filepath"
 	"strings"
@@ -89,6 +91,18 @@ func (cs CloudStorage) Read(id string) (CSFiles, error) {
 	}
 
 	return i, nil
+}
+
+func (cs CloudStorage) Create(name string, file multipart.File) error {
+	csPath := fmt.Sprintf("uploads/%s", name)
+	obj := cs.Client.Bucket(cs.Bucket).Object(csPath).NewWriter(cs.ctx)
+
+	if _, err := io.Copy(obj, file); err != nil {
+		return fmt.Errorf("could not write file to CloudStorage")
+	}
+	defer obj.Close()
+
+	return nil
 }
 
 func (cs CloudStorage) Delete(id string) error {
