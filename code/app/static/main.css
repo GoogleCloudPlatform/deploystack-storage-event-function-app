@@ -1,0 +1,12 @@
+body{
+    width: 800px;
+    margin: 10px auto;
+}
+
+.gallery .frame{
+    display: inline-block;
+    border: 1px solid #ccc; 
+    padding: 2px 0;
+    margin: 2px 4px;
+}
+

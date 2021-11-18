@@ -31,11 +31,14 @@ func main() {
 	defer cs.Close()
 
 	router := mux.NewRouter().StrictSlash(true)
+
 	router.HandleFunc("/api/v1/image", listHandler).Methods(http.MethodGet, http.MethodOptions)
 	router.HandleFunc("/api/v1/image", createHandler).Methods(http.MethodPost)
 	router.HandleFunc("/api/v1/image/{id}", readHandler).Methods(http.MethodGet)
 	router.HandleFunc("/api/v1/image/{id}", deleteHandler).Methods(http.MethodDelete)
 	router.HandleFunc("/api/v1/image/{id}", updateHandler).Methods(http.MethodPost, http.MethodPut)
+
+	router.PathPrefix("/").Handler(http.FileServer(http.Dir("./static/")))
 
 	headersOk := handlers.AllowedHeaders([]string{"X-Requested-With"})
 	originsOk := handlers.AllowedOrigins([]string{"*"})
