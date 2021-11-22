@@ -20,17 +20,17 @@ steps:
    - name: 'gcr.io/cloud-builders/docker'
      id: apibuild
      waitFor: ['-']
-     args: [ 'build', '-t', 'gcr.io/$PROJECT_ID/scaler-app', '.' ]
+     args: [ 'build', '-t', '$_REGION-docker.pkg.dev/$PROJECT_ID/scaler-app/prod', '.' ]
      dir: "code/app"
    - name: 'gcr.io/cloud-builders/docker'
      id: apipush
      waitFor: ['apibuild']
-     args: ['push', 'gcr.io/$PROJECT_ID/scaler-app']   
+     args: ['push', '$_REGION-docker.pkg.dev/$PROJECT_ID/scaler-app/prod']   
    - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
      id: apideploy
      waitFor: ['apipush']
      entrypoint: gcloud
-     args: ['run','deploy','scaler-app','--image','gcr.io/$PROJECT_ID/scaler-app','--region','$_REGION','--allow-unauthenticated','--set-env-vars','BUCKET=$_BUCKET','--port','80']
+     args: ['run','deploy','scaler-app','--image','$_REGION-docker.pkg.dev/$PROJECT_ID/scaler-app/prod','--region','$_REGION','--allow-unauthenticated','--set-env-vars','BUCKET=$_BUCKET','--port','80']
 substitutions:
   _BUCKET: 'FAKEBUCKETNAME'
   _REGION: us-central1

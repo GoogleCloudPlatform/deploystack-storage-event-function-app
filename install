@@ -67,6 +67,7 @@ gcloud services enable cloudbuild.googleapis.com || true
 gcloud services enable storage.googleapis.com || true
 gcloud services enable cloudfunctions.googleapis.com || true
 gcloud services enable run.googleapis.com || true
+gcloud services enable artifactregistry.googleapis.com || true
 printf "Enabling services in your GCP project - done \n"
 
 
@@ -96,11 +97,22 @@ printf "Enabling Cloud Build Service Account to publish to Cloud Run \n"
 gcloud projects add-iam-policy-binding $PROJECT \
 	--member=serviceAccount:$SABUILD \
 	--role=roles/run.admin --no-user-output-enabled
-printf "Enabling Cloud Build Service Account to publish to Cloud Functions \n"
+printf "Enabling Cloud Build Service Account to publish to Cloud Run \n"
 gcloud projects add-iam-policy-binding $PROJECT \
 	--member=serviceAccount:$SABUILD \
-	--role=roles/cloudfunctions.developer --no-user-output-enabled
+	--role=roles/run.admin --no-user-output-enabled	
+printf "Enabling Cloud Build Service Account to create content in Artifact Registry \n"
+gcloud projects add-iam-policy-binding $PROJECT \
+	--member=serviceAccount:$SABUILD \
+	--role=roles/artifactregistry.admin --no-user-output-enabled
 printf "Setting permissions - done \n"
+
+
+printf "******************************************************************************** \n"
+printf "Creating Artifact Registry repoistory for containers \n"
+gcloud artifacts repositories create scaler-app --location=$REGION \
+    --repository-format=docker  
+printf "Creating Artifact Registry repoistory for containers - done \n"
 
 printf "******************************************************************************** \n"
 printf "Deploying to Cloud Run and Cloud Functions \n"

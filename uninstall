@@ -6,8 +6,8 @@ NC='\033[0m' # No Color
 
 printf "******************************************************************************** \n"
 printf "${LCYAN}SCALER INSTALL${NC} \n"
-printf "This process will create a fully functioning image thumbnail makers app including all infrastructure.\n"
-printf "It's going to take upwards of 5 mins \n"
+printf "This process will clean up the image thumbnail makers app including all infrastructure.\n"
+printf "It's going to take upwards of 1 mins \n"
 printf "******************************************************************************** \n"
 
 PROJECT=$(gcloud config get-value project | xargs)
@@ -70,6 +70,12 @@ printf "Removing Cloud Storage Buckets \n"
 gsutil rm -rf gs://$BUCKET	
 gsutil rb gs://$BUCKET
 printf "Removing Cloud Storage Buckets- done \n"
+
+printf "******************************************************************************** \n"
+printf "Removing Artifact Registry repoistory for containers \n"
+gcloud artifacts repositories delete scaler-app -q
+   
+printf "Removing Artifact Registry repoistory for containers - done \n"
 
 
 printf "******************************************************************************** \n"
