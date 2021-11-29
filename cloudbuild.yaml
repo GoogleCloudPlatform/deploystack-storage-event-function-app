@@ -13,27 +13,59 @@
 # limitations under the License.
 
 steps:
-   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-     id: functiondeploy
-     entrypoint: gcloud
-     args: ['functions','deploy','scaler','--runtime','go116','--trigger-resource','$_BUCKET','--trigger-event','google.storage.object.finalize','--entry-point','OnFileUpload','--source','code/function']
-   - name: 'gcr.io/cloud-builders/docker'
-     id: apibuild
-     waitFor: ['-']
-     args: [ 'build', '-t', '$_REGION-docker.pkg.dev/$PROJECT_ID/scaler-app/prod', '.' ]
-     dir: "code/app"
-   - name: 'gcr.io/cloud-builders/docker'
-     id: apipush
-     waitFor: ['apibuild']
-     args: ['push', '$_REGION-docker.pkg.dev/$PROJECT_ID/scaler-app/prod']   
-   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-     id: apideploy
-     waitFor: ['apipush']
-     entrypoint: gcloud
-     args: ['run','deploy','scaler-app','--image','$_REGION-docker.pkg.dev/$PROJECT_ID/scaler-app/prod','--region','$_REGION','--allow-unauthenticated','--set-env-vars','BUCKET=$_BUCKET','--port','80']
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    id: functiondeploy
+    entrypoint: gcloud
+    args:
+      [
+        "functions",
+        "deploy",
+        "scaler",
+        "--runtime",
+        "go116",
+        "--trigger-resource",
+        "$_BUCKET",
+        "--trigger-event",
+        "google.storage.object.finalize",
+        "--entry-point",
+        "OnFileUpload",
+        "--source",
+        "code/function",
+      ]
+  - name: "gcr.io/cloud-builders/docker"
+    id: apibuild
+    waitFor: ["-"]
+    args:
+      [
+        "build",
+        "-t",
+        "$_REGION-docker.pkg.dev/$PROJECT_ID/scaler-app/prod",
+        ".",
+      ]
+    dir: "code/app"
+  - name: "gcr.io/cloud-builders/docker"
+    id: apipush
+    waitFor: ["apibuild"]
+    args: ["push", "$_REGION-docker.pkg.dev/$PROJECT_ID/scaler-app/prod"]
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    id: apideploy
+    waitFor: ["apipush"]
+    entrypoint: gcloud
+    args:
+      [
+        "run",
+        "deploy",
+        "scaler-app",
+        "--image",
+        "$_REGION-docker.pkg.dev/$PROJECT_ID/scaler-app/prod",
+        "--region",
+        "$_REGION",
+        "--allow-unauthenticated",
+        "--set-env-vars",
+        "BUCKET=$_BUCKET",
+        "--port",
+        "80",
+      ]
 substitutions:
-  _BUCKET: 'FAKEBUCKETNAME'
+  _BUCKET: "FAKEBUCKETNAME"
   _REGION: us-central1
-
-
-  
