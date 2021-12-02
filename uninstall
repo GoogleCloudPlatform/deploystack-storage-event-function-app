@@ -28,6 +28,7 @@ BUCKET=$PROJECT-bucket
 collectParamters BUCKET "$3" "the name of the Google Cloud Bucket" "$BUCKET" 
 
 
+gcloud config set project ${PROJECT}
 # All of these require the project id to be set. 
 PROJECTNUMBER=$(gcloud projects list --filter="$PROJECT" --format="value(PROJECT_NUMBER)" | xargs)	
 SABUILD=$PROJECTNUMBER@cloudbuild.gserviceaccount.com
