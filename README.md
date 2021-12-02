@@ -12,7 +12,7 @@ Function attached pattern.
 You can install this application using the `Open in Google Cloud Shell` button 
 below. 
 
-<a href="https://ssh.cloud.google.com/cloudshell/editor?cloudshell_git_repo=https%3A%2F%2Fgithub.com%2FGoogleCloudPlatform%2Fappinabox_scaler&cloudshell_print=install.txt">
+<a href="https://ssh.cloud.google.com/cloudshell/editor?cloudshell_git_repo=https%3A%2F%2Fgithub.com%2FGoogleCloudPlatform%2Fappinabox_scaler&cloudshell_print=install.txt&cloudshell_open_in_editor=README.md">
         <img alt="Open in Cloud Shell" src="https://gstatic.com/cloudssh/images/open-btn.svg">
 </a>
 
