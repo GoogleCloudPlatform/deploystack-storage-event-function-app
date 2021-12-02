@@ -13,53 +13,19 @@
 # limitations under the License.
 clear
 REGION=us-central1
-CYAN='\033[0;36m'
-LCYAN='\033[1;36m'
-NC='\033[0m' # No Color
 
-printf "******************************************************************************** \n"
-printf "${LCYAN}SCALER INSTALL${NC} \n"
-printf "This process will clean up the image thumbnail makers app including all infrastructure.\n"
-printf "It's going to take upwards of 1 mins \n"
-printf "******************************************************************************** \n"
+source globals
+
+print_title "SCALER UNINSTALL" "This process will create a image thumbnail app including all infrastructure." "1"
+
 
 PROJECT=$(gcloud config get-value project | xargs)
 
-# Allow user to overide the project id. 
-printf "Enter the name for the project which will host the applicaition [leave blank for ${LCYAN}'${PROJECT}'${NC}]: "
-read USER_PROJECT_ID
 
-if [[ $USER_PROJECT_ID ]]
-then
-      PROJECT=$USER_PROJECT_ID
-fi
-
-if [[ !($PROJECT) ]]
-then
-      printf "\nSorry, a Project ID must be specified \n"
-	  exit 1;
-fi
-
-gcloud config set project ${PROJECT}
-
-# Allow user to overide the default region. 
-printf "Enter a Google Cloud Region [leave blank for ${LCYAN}'${REGION}'${NC}]: "
-read USERREGION
-
-if [[ $USERREGION ]]
-then
-      REGION=$USERREGION
-fi
-
-# Allow user to overide the default Bucket name. 
+collectParamters PROJECT "$1" "the id of the Google Cloud Project" "$PROJECT" 
+collectParamters REGION "$2" "the Google Cloud Region" "$REGION" 
 BUCKET=$PROJECT-bucket
-printf "Enter a name for the Cloud Storage Bucket [leave blank for ${LCYAN}'${BUCKET}'${NC}]: "
-read USERBUCKET
-
-if [[ $USERBUCKET ]]
-then
-      BUCKET=$USERBUCKET
-fi
+collectParamters BUCKET "$3" "the name of the Google Cloud Bucket" "$BUCKET" 
 
 
 # All of these require the project id to be set. 
@@ -67,34 +33,27 @@ PROJECTNUMBER=$(gcloud projects list --filter="$PROJECT" --format="value(PROJECT
 SABUILD=$PROJECTNUMBER@cloudbuild.gserviceaccount.com
 SACOMPUTE=$PROJECTNUMBER-compute@developer.gserviceaccount.com
 
-printf "${LCYAN}Project Details${NC} \n"
+printf "${BCYAN}Project Details${NC} \n"
 printf "Project ID:         $PROJECT \n"
 printf "Project Number:     $PROJECTNUMBER \n"
 printf "Bucket:             $BUCKET \n"
 
-printf "******************************************************************************** \n"
-printf "Deleting from Cloud Run and Cloud Functions \n"
+section_open "Deleting from Cloud Run and Cloud Functions"
 gcloud functions delete scaler -q
 gcloud run services delete scaler-app --region=$REGION -q || true
-printf "Deleting from Cloud Run and Cloud Functions- done \n"
+section_close
 
-printf "******************************************************************************** \n"
-printf "Removing Cloud Storage Buckets \n"
+section_open "Removing Cloud Storage Buckets"
 gsutil rm -rf gs://$BUCKET	
 gsutil rb gs://$BUCKET
-printf "Removing Cloud Storage Buckets- done \n"
-
-printf "******************************************************************************** \n"
-printf "Removing Artifact Registry repoistory for containers \n"
-gcloud artifacts repositories delete scaler-app -q
-   
-printf "Removing Artifact Registry repoistory for containers - done \n"
+section_close
 
 
-printf "******************************************************************************** \n"
+section_open "Removing Artifact Registry repoistory for containers"
+gcloud artifacts repositories delete scaler-app --location $REGION -q
+section_close
+
+printf "$DIVIDER"
 printf "CONGRATS!!!!!!! \n"
 printf "Everything is all cleaned up.\n"
-printf "******************************************************************************** \n"	
-
-
-
+printf "$DIVIDER"	

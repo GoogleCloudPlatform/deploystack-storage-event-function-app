@@ -13,87 +13,42 @@
 # limitations under the License.
 clear
 REGION=us-central1
-CYAN='\033[0;36m'
-LCYAN='\033[1;36m'
-NC='\033[0m' # No Color
 
-printf "******************************************************************************** \n"
-printf "${LCYAN}SCALER INSTALL${NC} \n"
-printf "This process will create a fully functioning image thumbnail makers app including all infrastructure.\n"
-printf "It's going to take upwards of 5 mins \n"
-printf "******************************************************************************** \n"
+source globals
+
+print_title "SCALER INSTALL" "This process will create a image thumbnail app including all infrastructure." "5"
 
 PROJECT=$(gcloud config get-value project | xargs)
 
-# Allow user to overide the project id. 
-printf "Enter the name for the project which will host the applicaition [leave blank for ${LCYAN}'${PROJECT}'${NC}]: "
-read USER_PROJECT_ID
-
-if [[ $USER_PROJECT_ID ]]
-then
-      PROJECT=$USER_PROJECT_ID
-fi
-
-if [[ !($PROJECT) ]]
-then
-      printf "\nSorry, a Project ID must be specified \n"
-	  exit 1;
-fi
+collectParamters PROJECT "$1" "the id of the Google Cloud Project" "$PROJECT" 
+collectParamters REGION "$2" "the Google Cloud Region" "$REGION" 
+BUCKET=$PROJECT-bucket
+collectParamters BUCKET "$3" "the name of the Google Cloud Bucket" "$BUCKET" 
 
 gcloud config set project ${PROJECT}
 
-# Allow user to overide the default region. 
-printf "Enter a Google Cloud Region [leave blank for ${LCYAN}'${REGION}'${NC}]: "
-read USERREGION
-
-if [[ $USERREGION ]]
-then
-      REGION=$USERREGION
-fi
-
-# Allow user to overide the default Bucket name. 
-BUCKET=$PROJECT-bucket
-printf "Enter a name for the Cloud Storage Bucket [leave blank for ${LCYAN}'${BUCKET}'${NC}]: "
-read USERBUCKET
-
-if [[ $USERBUCKET ]]
-then
-      BUCKET=$USERBUCKET
-fi
-
-
-# All of these require the project id to be set. 
 PROJECTNUMBER=$(gcloud projects list --filter="$PROJECT" --format="value(PROJECT_NUMBER)" | xargs)	
 SABUILD=$PROJECTNUMBER@cloudbuild.gserviceaccount.com
 SACOMPUTE=$PROJECTNUMBER-compute@developer.gserviceaccount.com
 
-printf "${LCYAN}Project Details${NC} \n"
+printf "${BCYAN}Project Details${NC} \n"
 printf "Project ID:         $PROJECT \n"
 printf "Project Number:     $PROJECTNUMBER \n"
 printf "Bucket:             $BUCKET \n"
 
-
-
-printf "******************************************************************************** \n"
-printf "Enabling services in your GCP project \n"
+section_open "Enabling services in your GCP project"
 gcloud services enable cloudbuild.googleapis.com 
 gcloud services enable storage.googleapis.com 
 gcloud services enable cloudfunctions.googleapis.com 
 gcloud services enable run.googleapis.com 
 gcloud services enable artifactregistry.googleapis.com 
-printf "Enabling services in your GCP project - done \n"
+section_close
 
-
-printf "******************************************************************************** \n"
-printf "Creating the Storage Bucket to use \n"
+section_open "Creating the Storage Bucket to use"
 gsutil mb gs://$BUCKET
-printf "Creating the Storage Bucket to use - done \n"
+section_close
 
-
-
-
-printf "******************************************************************************** \n"
-printf "Setting permissions \n"
+section_open "Setting permissions"
 printf "Enabling Cloud Build Service Account to deploy to Cloud Run on $PROJECT \n"
 gcloud projects add-iam-policy-binding $PROJECT \
 	--member serviceAccount:$SABUILD \
@@ -118,26 +73,22 @@ printf "Enabling Cloud Build Service Account to create content in Artifact Regis
 gcloud projects add-iam-policy-binding $PROJECT \
 	--member=serviceAccount:$SABUILD \
 	--role=roles/artifactregistry.admin --no-user-output-enabled
-printf "Setting permissions - done \n"
+section_close
 
-
-printf "******************************************************************************** \n"
-printf "Creating Artifact Registry repoistory for containers \n"
+section_open "Creating Artifact Registry repoistory for container"
 gcloud artifacts repositories create scaler-app --location=$REGION \
     --repository-format=docker  
-printf "Creating Artifact Registry repoistory for containers - done \n"
+section_close
 
-printf "******************************************************************************** \n"
-printf "Deploying to Cloud Run and Cloud Functions \n"
+section_open "Deploying to Cloud Run and Cloud Functions"
 gcloud builds submit --substitutions=_BUCKET=$BUCKET,_REGION=$REGION .
-printf "Deploying to Cloud Run and Cloud Functions- done \n"
-
+section_close
 
 URL=$(gcloud run services describe scaler-app --region=$REGION --format="value(status.url)" | xargs)
 
-printf "******************************************************************************** \n"
+printf "$DIVIDER"
 printf "CONGRATS!!!!!!! \n"
 printf "You have configured a project, spun up architecture and deployed code.\n"
 printf "See your application at: \n"
 printf "\n ${CYAN}$URL${NC} \n"
-printf "******************************************************************************** \n"	
+printf "$DIVIDER"	
