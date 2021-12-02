@@ -1,6 +1,6 @@
 
 ********************************************************************************
-TODO INSTALL
+SCALER INSTALL
 ********************************************************************************
 
 Before installation, create a new Google Cloud Project in which to run the 
