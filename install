@@ -65,10 +65,10 @@ printf "Enabling Cloud Build Service Account to publish to Cloud Run \n"
 gcloud projects add-iam-policy-binding $PROJECT \
 	--member=serviceAccount:$SABUILD \
 	--role=roles/run.admin --no-user-output-enabled
-printf "Enabling Cloud Build Service Account to publish to Cloud Run \n"
+printf "Enabling Cloud Build Service Account to publish to Cloud Functions \n"
 gcloud projects add-iam-policy-binding $PROJECT \
 	--member=serviceAccount:$SABUILD \
-	--role=roles/run.admin --no-user-output-enabled	
+	--role=roles/cloudfunctions.admin --no-user-output-enabled	
 printf "Enabling Cloud Build Service Account to create content in Artifact Registry \n"
 gcloud projects add-iam-policy-binding $PROJECT \
 	--member=serviceAccount:$SABUILD \
