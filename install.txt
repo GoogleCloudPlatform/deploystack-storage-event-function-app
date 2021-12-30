@@ -1,15 +1,17 @@
 
-********************************************************************************
-SCALER INSTALL
-********************************************************************************
+[44m[1;34m--------------------------------------------------------------------------------[0m
+[44mSCALER INSTALL                                                                  [0m
+[44m[1;34m--------------------------------------------------------------------------------[0m
 
 Before installation, create a new Google Cloud Project in which to run the 
 scaler application. 
 
-https://console.cloud.google.com/projectcreate
+[4mhttps://console.cloud.google.com/projectcreate[0m
 
 You will be prompted by the install script for the project id. 
 
-To install applicaiton
+To continue, run this command:
 
-./install
+[42m--------------------------------------------------------------------------------[0m
+[42m[1;33m  ./install                                                                     [0m 
+[42m--------------------------------------------------------------------------------[0m
