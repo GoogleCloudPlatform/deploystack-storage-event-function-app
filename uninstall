@@ -22,36 +22,39 @@ print_title "SCALER UNINSTALL" "This process will create a image thumbnail app i
 PROJECT=$(gcloud config get-value project | xargs)
 
 
-collectParamters PROJECT "$1" "the id of the Google Cloud Project" "$PROJECT" 
-collectParamters REGION "$2" "the Google Cloud Region" "$REGION" 
+handleProject PROJECT "$1" 
+computeRegionPicker REGION "$2" "run" 
 BUCKET=$PROJECT-bucket
-collectParamters BUCKET "$3" "the name of the Google Cloud Bucket" "$BUCKET" 
+collectParameters BUCKET "$3" "the name of the Google Cloud Bucket" "$BUCKET" 
 
 
-gcloud config set project ${PROJECT}
 # All of these require the project id to be set. 
 PROJECTNUMBER=$(gcloud projects list --filter="$PROJECT" --format="value(PROJECT_NUMBER)" | xargs)	
 SABUILD=$PROJECTNUMBER@cloudbuild.gserviceaccount.com
 SACOMPUTE=$PROJECTNUMBER-compute@developer.gserviceaccount.com
 
-printf "${BCYAN}Project Details${NC} \n"
-printf "Project ID:         $PROJECT \n"
-printf "Project Number:     $PROJECTNUMBER \n"
-printf "Bucket:             $BUCKET \n"
+projectDetails "
+Project ID:,$PROJECT
+Region:,$REGION
+Project Number:,$PROJECTNUMBER
+Bucket:,$BUCKET
+Build Service Account:,$SABUILD
+Compute Service Account:,$SACOMPUTE
+"
 
 section_open "Deleting from Cloud Run and Cloud Functions"
-gcloud functions delete scaler -q
-gcloud run services delete scaler-app --region=$REGION -q || true
+    gcloud functions delete scaler -q
+    gcloud run services delete scaler-app --region=$REGION -q || true
 section_close
 
 section_open "Removing Cloud Storage Buckets"
-gsutil rm -rf gs://$BUCKET	
-gsutil rb gs://$BUCKET
+    gsutil rm -rf gs://$BUCKET	
+    gsutil rb gs://$BUCKET
 section_close
 
 
 section_open "Removing Artifact Registry repoistory for containers"
-gcloud artifacts repositories delete scaler-app --location $REGION -q
+    gcloud artifacts repositories delete scaler-app --location $REGION -q
 section_close
 
 printf "$DIVIDER"

@@ -20,68 +20,72 @@ print_title "SCALER INSTALL" "This process will create a image thumbnail app inc
 
 PROJECT=$(gcloud config get-value project | xargs)
 
-collectParamters PROJECT "$1" "the id of the Google Cloud Project" "$PROJECT" 
-collectParamters REGION "$2" "the Google Cloud Region" "$REGION" 
-BUCKET=$PROJECT-bucket
-collectParamters BUCKET "$3" "the name of the Google Cloud Bucket" "$BUCKET" 
+handleProject PROJECT "$1"
 
-gcloud config set project ${PROJECT}
+section_open "Enabling services in your GCP project"
+	gcloud services enable cloudbuild.googleapis.com 
+	gcloud services enable storage.googleapis.com 
+	gcloud services enable cloudfunctions.googleapis.com 
+	gcloud services enable run.googleapis.com 
+	gcloud services enable artifactregistry.googleapis.com 
+section_close
+
+computeRegionPicker REGION "$2" "run"
+BUCKET=$PROJECT-bucket
+collectParameters BUCKET "$3" "the name of the Google Cloud Bucket to use in this application" "$BUCKET" 
+
 
 PROJECTNUMBER=$(gcloud projects list --filter="$PROJECT" --format="value(PROJECT_NUMBER)" | xargs)	
 SABUILD=$PROJECTNUMBER@cloudbuild.gserviceaccount.com
 SACOMPUTE=$PROJECTNUMBER-compute@developer.gserviceaccount.com
 
-printf "${BCYAN}Project Details${NC} \n"
-printf "Project ID:         $PROJECT \n"
-printf "Project Number:     $PROJECTNUMBER \n"
-printf "Bucket:             $BUCKET \n"
-
-section_open "Enabling services in your GCP project"
-gcloud services enable cloudbuild.googleapis.com 
-gcloud services enable storage.googleapis.com 
-gcloud services enable cloudfunctions.googleapis.com 
-gcloud services enable run.googleapis.com 
-gcloud services enable artifactregistry.googleapis.com 
-section_close
+projectDetails "
+Project ID:,$PROJECT
+Region:,$REGION
+Project Number:,$PROJECTNUMBER
+Bucket:,$BUCKET
+Build Service Account:,$SABUILD
+Compute Service Account:,$SACOMPUTE
+"
 
 section_open "Creating the Storage Bucket to use"
-gsutil mb gs://$BUCKET
+	gsutil mb gs://$BUCKET
 section_close
 
 section_open "Setting permissions"
-printf "Enabling Cloud Build Service Account to deploy to Cloud Run on $PROJECT \n"
-gcloud projects add-iam-policy-binding $PROJECT \
-	--member serviceAccount:$SABUILD \
-	--role roles/run.developer --no-user-output-enabled
-printf "Enabling Cloud Build Service Account to perform Service Account activities \n"
-gcloud projects add-iam-policy-binding $PROJECT \
-  	--member serviceAccount:$SABUILD \
-  	--role roles/iam.serviceAccountUser --no-user-output-enabled
-printf "Enabling Cloud Build Service Account to act on behalf of Compute Service Account \n"	  
-gcloud iam service-accounts add-iam-policy-binding $SACOMPUTE \
-	--member=serviceAccount:$SABUILD \
-	--role roles/iam.serviceAccountUser --no-user-output-enabled 
-printf "Enabling Cloud Build Service Account to publish to Cloud Run \n"
-gcloud projects add-iam-policy-binding $PROJECT \
-	--member=serviceAccount:$SABUILD \
-	--role=roles/run.admin --no-user-output-enabled
-printf "Enabling Cloud Build Service Account to publish to Cloud Functions \n"
-gcloud projects add-iam-policy-binding $PROJECT \
-	--member=serviceAccount:$SABUILD \
-	--role=roles/cloudfunctions.admin --no-user-output-enabled	
-printf "Enabling Cloud Build Service Account to create content in Artifact Registry \n"
-gcloud projects add-iam-policy-binding $PROJECT \
-	--member=serviceAccount:$SABUILD \
-	--role=roles/artifactregistry.admin --no-user-output-enabled
+	printf "Enabling Cloud Build Service Account to deploy to Cloud Run on $PROJECT \n"
+	gcloud projects add-iam-policy-binding $PROJECT \
+		--member serviceAccount:$SABUILD \
+		--role roles/run.developer --no-user-output-enabled
+	printf "Enabling Cloud Build Service Account to perform Service Account activities \n"
+	gcloud projects add-iam-policy-binding $PROJECT \
+		--member serviceAccount:$SABUILD \
+		--role roles/iam.serviceAccountUser --no-user-output-enabled
+	printf "Enabling Cloud Build Service Account to act on behalf of Compute Service Account \n"	  
+	gcloud iam service-accounts add-iam-policy-binding $SACOMPUTE \
+		--member=serviceAccount:$SABUILD \
+		--role roles/iam.serviceAccountUser --no-user-output-enabled 
+	printf "Enabling Cloud Build Service Account to publish to Cloud Run \n"
+	gcloud projects add-iam-policy-binding $PROJECT \
+		--member=serviceAccount:$SABUILD \
+		--role=roles/run.admin --no-user-output-enabled
+	printf "Enabling Cloud Build Service Account to publish to Cloud Functions \n"
+	gcloud projects add-iam-policy-binding $PROJECT \
+		--member=serviceAccount:$SABUILD \
+		--role=roles/cloudfunctions.admin --no-user-output-enabled	
+	printf "Enabling Cloud Build Service Account to create content in Artifact Registry \n"
+	gcloud projects add-iam-policy-binding $PROJECT \
+		--member=serviceAccount:$SABUILD \
+		--role=roles/artifactregistry.admin --no-user-output-enabled
 section_close
 
 section_open "Creating Artifact Registry repoistory for container"
-gcloud artifacts repositories create scaler-app --location=$REGION \
+	gcloud artifacts repositories create scaler-app --location=$REGION \
     --repository-format=docker  
 section_close
 
 section_open "Deploying to Cloud Run and Cloud Functions"
-gcloud builds submit --substitutions=_BUCKET=$BUCKET,_REGION=$REGION .
+	gcloud builds submit --substitutions=_BUCKET=$BUCKET,_REGION=$REGION .
 section_close
 
 URL=$(gcloud run services describe scaler-app --region=$REGION --format="value(status.url)" | xargs)
@@ -90,5 +94,5 @@ printf "$DIVIDER"
 printf "CONGRATS!!!!!!! \n"
 printf "You have configured a project, spun up architecture and deployed code.\n"
 printf "See your application at: \n"
-printf "\n ${CYAN}$URL${NC} \n"
+printf "\n ${UCYAN}$URL${NC} \n"
 printf "$DIVIDER"	

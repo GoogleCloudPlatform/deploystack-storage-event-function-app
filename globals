@@ -33,7 +33,7 @@ DIVIDER=$(printf %"$(tput cols)"s | tr " " "*")
 DIVIDER+="\n"
 
 # INPUT COLLECTION
-function collectParamters() {
+function collectParameters() {
     local __resultvar=$1
     local ARG=$2
     local VALUE=$2
@@ -381,6 +381,7 @@ function computeZonePicker() {
     eval $__resultvar="'$Z'"
 
 }
+
 
 function get_project_id() {
     local __resultvar=$1
