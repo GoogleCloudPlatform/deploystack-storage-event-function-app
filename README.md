@@ -1,4 +1,4 @@
-# App in a Box - Scaler 
+# Deploy Stack - Scaler 
 
 This is a simple thumbnail maker that uses a Cloud Storage bucket and a Cloud 
 Functions based watcher to make thumbnails for uploaded images. 
@@ -12,7 +12,7 @@ Function attached pattern.
 You can install this application using the `Open in Google Cloud Shell` button 
 below. 
 
-<a href="https://ssh.cloud.google.com/cloudshell/editor?cloudshell_git_repo=https%3A%2F%2Fgithub.com%2FGoogleCloudPlatform%2Fappinabox_scaler&cloudshell_print=install.txt&shellonly=true">
+<a href="https://ssh.cloud.google.com/cloudshell/editor?cloudshell_git_repo=https%3A%2F%2Fgithub.com%2FGoogleCloudPlatform%2Fdeploystack_scaler&cloudshell_print=install.txt&shellonly=true">
         <img alt="Open in Cloud Shell" src="https://gstatic.com/cloudssh/images/open-btn.svg">
 </a>
 
