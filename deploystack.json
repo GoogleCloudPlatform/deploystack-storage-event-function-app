@@ -1,0 +1,26 @@
+{
+  "title": "SCALER",
+  "duration": 5,
+  "collect_project": true,
+  "collect_project_number": true,
+  "collect_region": true,
+  "region_type": "run",
+  "region_default": "us-central1",
+  "hard_settings": {
+    "basename": "scaler"
+  },
+  "custom_settings": [
+    {
+      "name": "bucket",
+      "description": "the name of the Google Cloud Bucket to use in this application",
+      "default": "bucket",
+      "prepend_project": true
+    },
+    {
+      "name": "location",
+      "description": "the location for the Cloud Storage Bucket",
+      "default": "US",
+      "options": ["US", "EU", "ASIA"]
+    }
+  ]
+}
