@@ -7,3 +7,5 @@ terraform.tfstate
 index.zip
 archive.zip
 clean
+terraform.tfvars
+go.sum
