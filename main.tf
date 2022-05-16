@@ -123,7 +123,7 @@ resource "google_cloudfunctions_function" "function" {
 
 
 resource "google_storage_bucket" "function_bucket" {
-  name          = "${var.basename}-function-deployer"
+  name          = "${var.project_id}-function-deployer"
    project    = var.project_number
   location = var.location
 }
@@ -213,4 +213,10 @@ resource "google_cloud_run_service_iam_policy" "noauth_app" {
   project     = google_cloud_run_service.app.project
   service     = google_cloud_run_service.app.name
   policy_data = data.google_iam_policy.noauth.policy_data
+}
+
+
+output "endpoint" {
+  value       = google_cloud_run_service.app.status[0].url
+  description = "The url of the front end which we want to surface to the user"
 }
