@@ -23,8 +23,8 @@ variable "location" {
 }
 
 locals {
-  sabuild        = "${var.project_number}@cloudbuild.gserviceaccount.com"
-  sacompute      = "${var.project_number}-compute@developer.gserviceaccount.com"
+  sabuild   = "${var.project_number}@cloudbuild.gserviceaccount.com"
+  sacompute = "${var.project_number}-compute@developer.gserviceaccount.com"
 }
 
 # Handle services
@@ -32,18 +32,18 @@ variable "gcp_service_list" {
   description = "The list of apis necessary for the project"
   type        = list(string)
   default = [
-    "cloudbuild.googleapis.com", 
-	"storage.googleapis.com", 
-	"cloudfunctions.googleapis.com", 
-	"run.googleapis.com", 
-	"artifactregistry.googleapis.com", 
+    "cloudbuild.googleapis.com",
+    "storage.googleapis.com",
+    "cloudfunctions.googleapis.com",
+    "run.googleapis.com",
+    "artifactregistry.googleapis.com",
   ]
 }
 
 resource "google_project_service" "all" {
-  for_each                   = toset(var.gcp_service_list)
-  project                    = var.project_number
-  service                    = each.key
+  for_each           = toset(var.gcp_service_list)
+  project            = var.project_number
+  service            = each.key
   disable_on_destroy = false
 }
 
@@ -54,9 +54,9 @@ variable "build_roles_list" {
   default = [
     "roles/run.developer",
     "roles/iam.serviceAccountUser",
-    "roles/iam.serviceAccountUser", 
+    "roles/iam.serviceAccountUser",
     "roles/run.admin",
-    "roles/cloudfunctions.admin",	
+    "roles/cloudfunctions.admin",
     "roles/artifactregistry.admin",
   ]
 }
@@ -70,9 +70,36 @@ resource "google_project_iam_member" "allbuild" {
 }
 
 
+# Handle storage bucket
+resource "google_storage_bucket" "target_bucket" {
+  name     = var.bucket
+  project  = var.project_number
+  location = var.location
+}
+
+resource "google_storage_bucket" "function_bucket" {
+  name     = "${var.project_id}-function-deployer"
+  project  = var.project_number
+  location = var.location
+}
+
+
+# Handle artifact registry
+resource "google_artifact_registry_repository" "app" {
+  provider      = google-beta
+  format        = "DOCKER"
+  location      = var.region
+  project       = var.project_id
+  repository_id = "${var.basename}-app"
+  depends_on    = [google_project_service.all]
+}
+
+
+
+
 resource "null_resource" "cloudbuild_function" {
   provisioner "local-exec" {
-    command     = <<-EOT
+    command = <<-EOT
     cp code/function/function.go .
     cp code/function/go.mod .
     zip index.zip function.go
@@ -89,55 +116,14 @@ resource "null_resource" "cloudbuild_function" {
 
 
 
-# Handle storage bucket
-resource "google_storage_bucket" "target_bucket" {
-  name          = var.bucket
-   project    = var.project_number
-  location = var.location
-}
 
 
-resource "google_cloudfunctions_function" "function" {
-  name        = var.basename
-  project  = var.project_id
-  region = var.region
-
-  runtime     = "go116"
-
-  available_memory_mb   = 128
-  source_archive_bucket = google_storage_bucket.function_bucket.name
-  source_archive_object = google_storage_bucket_object.archive.name
-  entry_point           = "OnFileUpload"
-  event_trigger {
-    event_type = "google.storage.object.finalize"
-    resource = google_storage_bucket.target_bucket.name
-  }
-
-  depends_on = [
-    google_storage_bucket.function_bucket,
-    google_storage_bucket.target_bucket,
-    google_storage_bucket_object.archive,
-    google_project_service.all
-  ]
-}
 
 
-resource "google_storage_bucket" "function_bucket" {
-  name          = "${var.project_id}-function-deployer"
-   project    = var.project_number
-  location = var.location
-}
 
 
-# Handle artifact registry
-resource "google_artifact_registry_repository" "app" {
-  provider      = google-beta
-  format        = "DOCKER"
-  location      = var.region
-  project       = var.project_id
-  repository_id = "${var.basename}-app"
-  depends_on    = [google_project_service.all]
-}
+
+
 
 
 resource "null_resource" "cloudbuild_app" {
@@ -152,24 +138,6 @@ resource "null_resource" "cloudbuild_app" {
   ]
 }
 
-
-
-
-
-resource "google_storage_bucket_object" "archive" {
-  name   = "index.zip"
-  bucket = google_storage_bucket.function_bucket.name
-  source = "index.zip"
-  depends_on = [
-    google_project_service.all,
-    google_storage_bucket.function_bucket,
-    null_resource.cloudbuild_function
-  ]
-}
-
-
-
-
 resource "google_cloud_run_service" "app" {
   name     = "${var.basename}-app"
   location = var.region
@@ -181,15 +149,15 @@ resource "google_cloud_run_service" "app" {
         image = "${var.region}-docker.pkg.dev/${var.project_id}/${var.basename}-app/prod"
         env {
           name  = "BUCKET"
-          value = "${var.bucket}"
+          value = var.bucket
         }
       }
     }
 
     metadata {
       annotations = {
-        "autoscaling.knative.dev/maxScale"        = "1000"
-        "run.googleapis.com/client-name"          = "terraform"
+        "autoscaling.knative.dev/maxScale" = "1000"
+        "run.googleapis.com/client-name"   = "terraform"
       }
     }
   }
@@ -214,6 +182,50 @@ resource "google_cloud_run_service_iam_policy" "noauth_app" {
   service     = google_cloud_run_service.app.name
   policy_data = data.google_iam_policy.noauth.policy_data
 }
+
+
+
+resource "google_storage_bucket_object" "archive" {
+  name   = "index.zip"
+  bucket = google_storage_bucket.function_bucket.name
+  source = "index.zip"
+  depends_on = [
+    google_project_service.all,
+    google_storage_bucket.function_bucket,
+    null_resource.cloudbuild_function
+  ]
+}
+
+resource "google_cloudfunctions_function" "function" {
+  name    = var.basename
+  project = var.project_id
+  region  = var.region
+
+  runtime = "go116"
+
+  available_memory_mb   = 128
+  source_archive_bucket = google_storage_bucket.function_bucket.name
+  source_archive_object = google_storage_bucket_object.archive.name
+  entry_point           = "OnFileUpload"
+  event_trigger {
+    event_type = "google.storage.object.finalize"
+    resource   = google_storage_bucket.target_bucket.name
+  }
+
+  depends_on = [
+    google_storage_bucket.function_bucket,
+    google_storage_bucket.target_bucket,
+    google_storage_bucket_object.archive,
+    google_project_service.all
+  ]
+}
+
+
+
+
+
+
+
 
 
 output "endpoint" {
