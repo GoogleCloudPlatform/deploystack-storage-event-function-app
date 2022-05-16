@@ -2,3 +2,8 @@
 .DS_Store
 code/app/creds/creds.json
 errFile
+.terraform*
+terraform.tfstate
+index.zip
+archive.zip
+clean
