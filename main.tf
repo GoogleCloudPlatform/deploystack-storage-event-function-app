@@ -129,7 +129,7 @@ resource "null_resource" "cloudbuild_function" {
 resource "null_resource" "cloudbuild_app" {
   provisioner "local-exec" {
     working_dir = "${path.module}/code/app"
-    command     = "gcloud builds submit . --substitutions=_REGION=${var.region},_BASENAME=${var.basename}"
+    command     = "gcloud builds submit . --substitutions=_REGION=${var.region},_BASENAME=${var.basename}  --project ${var.project_id}" 
   }
 
   depends_on = [
