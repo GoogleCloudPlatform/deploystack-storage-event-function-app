@@ -87,8 +87,8 @@ terraform apply -auto-approve -var project_id="${PROJECT}" -var project_number="
 
 
 section_open "Testing Cloud Run and Cloud Functions Deploy"
-evalTest 'gcloud functions describe scaler --format="value(name)"' "projects/$PROJECT/locations/$REGION/functions/scaler"
-evalTest 'gcloud run services describe scaler-app --region=$REGION --format="value(name)"' "scaler-app"
+evalTest 'gcloud functions describe $BASENAME --format="value(name)"' "projects/$PROJECT/locations/$REGION/functions/$BASENAME"
+evalTest 'gcloud run services describe $BASENAME-app --region=$REGION --format="value(name)"' "$BASENAME-app"
 section_close
 
 section_open "Test the Cloud Storage Bucket exists"
@@ -97,15 +97,15 @@ section_close
 
 # This is a bug. Everytime this command runs "Encryption: Google Managed Key gets thrown in STDERR"
 section_open "Testing Artifact Registry repoistory for containers"
-evalTest 'gcloud artifacts repositories describe scaler-app --location $REGION --format="value(name)"' "EXPECTERROR"
+evalTest 'gcloud artifacts repositories describe $BASENAME-app --location $REGION --format="value(name)"' "EXPECTERROR"
 section_close
 
 terraform destroy -auto-approve -var project_id="${PROJECT}" -var project_number="${PROJECT_NUMBER}" -var bucket="${BUCKET}" -var location="${LOCATION}" -var region="${REGION}" -var basename="${BASENAME}" 
-
+sleep 60
 
 section_open "Testing Cloud Run and Cloud Functions are gone"
-evalTest 'gcloud functions describe scaler --format="value(name)"' "EXPECTERROR"
-evalTest 'gcloud run services describe scaler-app --region=$REGION --format="value(name)"' "EXPECTERROR"
+evalTest 'gcloud functions describe $BASENAME --format="value(name)"' "EXPECTERROR"
+evalTest 'gcloud run services describe $BASENAME-app --region=$REGION --format="value(name)"' "EXPECTERROR"
 section_close
 
 section_open "Test the Cloud Storage Bucket doesnt exist"
@@ -113,7 +113,7 @@ evalTest 'gsutil ls gs://$BUCKET | grep 404 | xargs'  "EXPECTERROR"
 section_close
 
 section_open "Testing Artifact Registry repoistory for containers is gone"
-evalTest 'gcloud artifacts repositories describe scaler-app --location $REGION --format="value(name)"' "EXPECTERROR"
+evalTest 'gcloud artifacts repositories describe $BASENAME-app --location $REGION --format="value(name)"' "EXPECTERROR"
 section_close
 
 
