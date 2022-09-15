@@ -1,5 +1,5 @@
 {
-  "title": "SCALER",
+  "title": "Storage Event Function App (SCALER)",
   "duration": 5,
   "documentation_link": "https://cloud.google.com/shell/docs/cloud-shell-tutorials/deploystack/storage-event-function-app",
   "collect_project": true,
