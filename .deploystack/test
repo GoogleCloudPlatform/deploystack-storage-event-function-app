@@ -80,10 +80,16 @@ BUCKET=$PROJECT-bucket
 REGION=us-central1
 BASENAME=scaler
 LOCATION=US
+terraformDIR=terraform
 
-
-terraform init
-terraform apply -auto-approve -var project_id="${PROJECT}" -var project_number="${PROJECT_NUMBER}" -var bucket="${BUCKET}" -var location="${LOCATION}" -var region="${REGION}" -var basename="${BASENAME}" 
+terraform -chdir="$terraformDIR" init
+terraform -chdir="$terraformDIR" apply -auto-approve \
+    -var project_id="${PROJECT}" \
+    -var project_number="${PROJECT_NUMBER}" \
+    -var bucket="${BUCKET}" \
+    -var location="${LOCATION}" \
+    -var region="${REGION}" \
+    -var basename="${BASENAME}"
 
 
 section_open "Testing Cloud Run and Cloud Functions Deploy"
@@ -100,7 +106,14 @@ section_open "Testing Artifact Registry repoistory for containers"
 evalTest 'gcloud artifacts repositories describe $BASENAME-app --location $REGION --format="value(name)"' "EXPECTERROR"
 section_close
 
-terraform destroy -auto-approve -var project_id="${PROJECT}" -var project_number="${PROJECT_NUMBER}" -var bucket="${BUCKET}" -var location="${LOCATION}" -var region="${REGION}" -var basename="${BASENAME}" 
+terraform -chdir="$terraformDIR" destroy -auto-approve \
+    -var project_id="${PROJECT}" \
+    -var project_number="${PROJECT_NUMBER}" \
+    -var bucket="${BUCKET}" \
+    -var location="${LOCATION}" \
+    -var region="${REGION}" \
+    -var basename="${BASENAME}" 
+    
 sleep 60
 
 section_open "Testing Cloud Run and Cloud Functions are gone"

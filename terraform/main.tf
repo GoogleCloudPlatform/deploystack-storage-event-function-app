@@ -1,26 +1,18 @@
-variable "project_id" {
-  type = string
-}
-
-variable "project_number" {
-  type = string
-}
-
-variable "region" {
-  type = string
-}
-
-variable "bucket" {
-  type = string
-}
-
-variable "basename" {
-  type = string
-}
-
-variable "location" {
-  type = string
-}
+/**
+ * Copyright 2022 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 locals {
   sabuild   = "${var.project_number}@cloudbuild.gserviceaccount.com"
@@ -28,18 +20,6 @@ locals {
 }
 
 # Handle services
-variable "gcp_service_list" {
-  description = "The list of apis necessary for the project"
-  type        = list(string)
-  default = [
-    "cloudbuild.googleapis.com",
-    "storage.googleapis.com",
-    "cloudfunctions.googleapis.com",
-    "run.googleapis.com",
-    "artifactregistry.googleapis.com",
-  ]
-}
-
 resource "google_project_service" "all" {
   for_each           = toset(var.gcp_service_list)
   project            = var.project_number
@@ -48,19 +28,6 @@ resource "google_project_service" "all" {
 }
 
 # Handle Permissions
-variable "build_roles_list" {
-  description = "The list of roles that build needs for"
-  type        = list(string)
-  default = [
-    "roles/run.developer",
-    "roles/iam.serviceAccountUser",
-    "roles/iam.serviceAccountUser",
-    "roles/run.admin",
-    "roles/cloudfunctions.admin",
-    "roles/artifactregistry.admin",
-  ]
-}
-
 resource "google_project_iam_member" "allbuild" {
   for_each   = toset(var.build_roles_list)
   project    = var.project_number
@@ -100,10 +67,10 @@ resource "google_artifact_registry_repository" "app" {
 resource "null_resource" "cloudbuild_function" {
   provisioner "local-exec" {
     command = <<-EOT
-    cp code/function/function.go .
-    cp code/function/go.mod .
-    zip index.zip function.go
-    zip index.zip go.mod
+    cp ../code/function/function.go .
+    cp ../code/function/go.mod .
+    zip ../index.zip function.go
+    zip ../index.zip go.mod
     rm go.mod
     rm function.go
     EOT
@@ -114,22 +81,10 @@ resource "null_resource" "cloudbuild_function" {
   ]
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
 resource "null_resource" "cloudbuild_app" {
   provisioner "local-exec" {
-    working_dir = "${path.module}/code/app"
-    command     = "gcloud builds submit . --substitutions=_REGION=${var.region},_BASENAME=${var.basename}  --project ${var.project_id}" 
+    working_dir = "${path.module}/../code/app"
+    command     = "gcloud builds submit . --substitutions=_REGION=${var.region},_BASENAME=${var.basename}  --project ${var.project_id}"
   }
 
   depends_on = [
@@ -188,7 +143,7 @@ resource "google_cloud_run_service_iam_policy" "noauth_app" {
 resource "google_storage_bucket_object" "archive" {
   name   = "index.zip"
   bucket = google_storage_bucket.function_bucket.name
-  source = "index.zip"
+  source = "../index.zip"
   depends_on = [
     google_project_service.all,
     google_storage_bucket.function_bucket,
@@ -218,17 +173,4 @@ resource "google_cloudfunctions_function" "function" {
     google_storage_bucket_object.archive,
     google_project_service.all
   ]
-}
-
-
-
-
-
-
-
-
-
-output "endpoint" {
-  value       = google_cloud_run_service.app.status[0].url
-  description = "The url of the front end which we want to surface to the user"
 }
