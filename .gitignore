@@ -9,3 +9,4 @@ archive.zip
 clean
 terraform.tfvars
 go.sum
+terraform.tfstate.backup
