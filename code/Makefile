@@ -7,22 +7,22 @@ env:
 	gcloud config set project $(PROJECT)
 
 bucket:
-	gsutil mb gs://$(BUCKET)
+	gcloud storage buckets create gs://$(BUCKET)
 
 clean.bucket:
-	gsutil rm -rf gs://$(BUCKET)	
-	gsutil rb gs://$(BUCKET)	
+	gcloud storage rm --recursive --continue-on-error gs://$(BUCKET)	
+	gcloud storage buckets delete gs://$(BUCKET)	
 
 clean.files:
-	-gsutil rm -rf gs://$(BUCKET)/uploads/*
-	-gsutil rm -rf gs://$(BUCKET)/processed/*	
+	-gcloud storage rm --recursive --continue-on-error gs://$(BUCKET)/uploads/*
+	-gcloud storage rm --recursive --continue-on-error gs://$(BUCKET)/processed/*	
 
 test.files: clean.files
-	gsutil cp function/ColtReto.png gs://$(BUCKET)/uploads/ColtReto.png
+	gcloud storage cp function/ColtReto.png gs://$(BUCKET)/uploads/ColtReto.png
 
 
 test.duplicate: 
-	gsutil cp function/ColtReto.png gs://$(BUCKET)/uploads/ColtReto.png	
+	gcloud storage cp function/ColtReto.png gs://$(BUCKET)/uploads/ColtReto.png	
 
 cleanapi:
 	-docker stop scaler-goapi

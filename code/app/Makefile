@@ -18,7 +18,7 @@ serviceaccount: env
 
 
 perms: env
-	gsutil iam ch 'serviceaccount:$(SAACCOUNTEMAIL):roles/storage.admin' gs://$(BUCKET)
+	gcloud storage buckets add-iam-policy-binding gs://$(BUCKET) --member='serviceaccount:$(SAACCOUNTEMAIL)' --role='roles/storage.admin'
 
 
 
