@@ -92,7 +92,7 @@ evalTest 'gcloud run services describe $BASENAME-app --region=$REGION --format="
 section_close
 
 section_open "Test the Cloud Storage Bucket exists"
-evalTest 'gsutil ls gs://$BUCKET | grep 404 '  ""
+evalTest 'gcloud storage ls gs://$BUCKET | grep 404 '  ""
 section_close
 
 # This is a bug. Everytime this command runs "Encryption: Google Managed Key gets thrown in STDERR"
@@ -109,7 +109,7 @@ evalTest 'gcloud run services describe $BASENAME-app --region=$REGION --format="
 section_close
 
 section_open "Test the Cloud Storage Bucket doesnt exist"
-evalTest 'gsutil ls gs://$BUCKET | grep 404 | xargs'  "EXPECTERROR"
+evalTest 'gcloud storage ls gs://$BUCKET | grep 404 | xargs'  "EXPECTERROR"
 section_close
 
 section_open "Testing Artifact Registry repoistory for containers is gone"
