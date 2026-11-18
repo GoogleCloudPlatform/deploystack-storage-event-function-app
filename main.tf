@@ -167,21 +167,12 @@ resource "google_cloud_run_service" "app" {
   ]
 }
 
-data "google_iam_policy" "noauth" {
-  binding {
-    role = "roles/run.invoker"
-    members = [
-      "allUsers",
-    ]
-  }
-}
-
-resource "google_cloud_run_service_iam_policy" "noauth_app" {
-  location    = google_cloud_run_service.app.location
-  project     = google_cloud_run_service.app.project
-  service     = google_cloud_run_service.app.name
-  policy_data = data.google_iam_policy.noauth.policy_data
-}
+# SECURITY: Public unauthenticated invoker access is intentionally omitted.
+# Because the application exposes state-mutating endpoints (POST, PUT, DELETE
+# /api/v1/image) without per-user ownership checks, callers must authenticate
+# via Cloud Run IAM (roles/run.invoker), e.g. using `gcloud run services proxy`
+# or an explicit `google_cloud_run_service_iam_member` binding for a trusted
+# user, group, or service account.
 
 
 

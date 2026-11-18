@@ -1,5 +1,6 @@
 
 .DS_Store
+code/app/creds/
 code/app/creds/creds.json
 errFile
 .terraform*

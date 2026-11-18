@@ -19,6 +19,15 @@ below.
 Clicking this link will take you right to the DeployStack app, running in your 
 Cloud Shell environment. It will walk you through setting up your architecture.  
 
+## Accessing the Application
+By default, the deployed Cloud Run service requires IAM authentication (`roles/run.invoker`) and is not exposed to unauthenticated internet traffic. To access the web interface locally using your Google Cloud credentials, run:
+
+```bash
+gcloud run services proxy scaler-app --region=<REGION>
+```
+
+Alternatively, grant `roles/run.invoker` to specific authenticated users, groups, or service accounts via IAM.
+
 ## Cleanup 
 To remove all billing components from the project
 1. Typing `deploystack uninstall`
