@@ -82,9 +82,12 @@ func (cs CloudStorage) List() (CSFiles, error) {
 
 func (cs CloudStorage) Read(id string) (CSFiles, error) {
 	i := CSFiles{}
+	if err := validateImageID(id); err != nil {
+		return i, err
+	}
 	bucket := cs.Client.Bucket(cs.Bucket)
 
-	query := &storage.Query{Prefix: fmt.Sprintf("processed/%s", id)}
+	query := &storage.Query{Prefix: fmt.Sprintf("processed/%s/", id)}
 	it := bucket.Objects(cs.ctx, query)
 	for {
 		obj, err := it.Next()
@@ -108,18 +111,28 @@ func (cs CloudStorage) Read(id string) (CSFiles, error) {
 }
 
 func (cs CloudStorage) Create(name string, file multipart.File) error {
-	csPath := fmt.Sprintf("uploads/%s", name)
+	cleanName, err := sanitizeFilename(name)
+	if err != nil {
+		return err
+	}
+	csPath := fmt.Sprintf("uploads/%s", cleanName)
 	obj := cs.Client.Bucket(cs.Bucket).Object(csPath).NewWriter(cs.ctx)
 
 	if _, err := io.Copy(obj, file); err != nil {
+		_ = obj.Close()
 		return fmt.Errorf("could not write file to CloudStorage")
 	}
-	defer obj.Close()
+	if err := obj.Close(); err != nil {
+		return fmt.Errorf("could not close CloudStorage writer: %v", err)
+	}
 
 	return nil
 }
 
 func (cs CloudStorage) Delete(id string) error {
+	if err := validateImageID(id); err != nil {
+		return err
+	}
 	bucket := cs.Client.Bucket(cs.Bucket)
 	query := &storage.Query{Prefix: fmt.Sprintf("processed/%s/", id)}
 	it := bucket.Objects(cs.ctx, query)
@@ -157,14 +170,26 @@ type Image struct {
 	Thumbnail string `json:"thumbnail"`
 }
 
+func encodeGCSObjectPath(p string) string {
+	parts := strings.Split(p, "/")
+	for idx, part := range parts {
+		parts[idx] = url.PathEscape(part)
+	}
+	return strings.Join(parts, "/")
+}
+
 // Load converts a Cloud Storage Object to the format we need for this app.
 func (i *Image) Load(f CSFile) error {
-	if strings.Index(f.Name, "original.") > -1 {
+	if strings.Contains(f.Name, "original.") {
 		dir := filepath.Dir(f.Name)
 		base := filepath.Base(f.Name)
-		name := strings.Replace(dir, "processed/", "", 1)
-		o := fmt.Sprintf("https://storage.googleapis.com/%s/%s/%s", f.Bucket, dir, base)
-		t := fmt.Sprintf("https://storage.googleapis.com/%s/%s/%s", f.Bucket, dir, strings.Replace(base, "original.", "thumbnail.", 1))
+		name := strings.TrimPrefix(dir, "processed/")
+		escapedBucket := url.PathEscape(f.Bucket)
+		escapedDir := encodeGCSObjectPath(dir)
+		escapedOrig := url.PathEscape(base)
+		escapedThumb := url.PathEscape(strings.Replace(base, "original.", "thumbnail.", 1))
+		o := fmt.Sprintf("https://storage.googleapis.com/%s/%s/%s", escapedBucket, escapedDir, escapedOrig)
+		t := fmt.Sprintf("https://storage.googleapis.com/%s/%s/%s", escapedBucket, escapedDir, escapedThumb)
 		img := Image{name, o, t}
 		*i = img
 	}
@@ -204,7 +229,7 @@ func NewImages(fs CSFiles) (Images, error) {
 // Load converts a slice of Cloud Storage Objects to the format we need for this app.
 func (is *Images) Load(fs CSFiles) error {
 	for _, v := range fs {
-		if strings.Index(v.Name, "original.") > -1 {
+		if strings.Contains(v.Name, "original.") {
 			i := Image{}
 			if err := i.Load(v); err != nil {
 				return err

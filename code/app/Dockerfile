@@ -19,7 +19,6 @@ WORKDIR /app
 COPY go.mod ./
 COPY go.sum ./
 COPY static ./static
-COPY creds ./creds
 RUN go mod download
 
 

@@ -27,9 +27,24 @@ function activateUpload(){
     document.querySelector(".upload").disabled = false;
 }
 
+function safeImageUrl(rawUrl){
+    if (typeof rawUrl !== "string" || rawUrl === "") {
+        return "";
+    }
+    try {
+        let parsed = new URL(rawUrl, window.location.origin);
+        if (parsed.protocol === "https:" || parsed.protocol === "http:") {
+            return parsed.href;
+        }
+    } catch (e) {
+        return "";
+    }
+    return "";
+}
+
 function sendAlert(message){
     let alert = document.querySelector(".alert");
-    alert.innerHTML = message;
+    alert.textContent = message;
     alert.classList.remove("error");
     alert.style.display = "block";
 
@@ -48,7 +63,7 @@ function sendAlert(message){
 function sendError(message){
     let alert = document.querySelector(".alert");
     alert.classList.add("error");
-    alert.innerHTML = message;
+    alert.textContent = message;
     alert.style.display = "block";
 
     setTimeout(function(){
@@ -58,7 +73,7 @@ function sendError(message){
             let alert = document.querySelector(".alert");
             alert.style.opacity = 1;
             alert.style.display = "none";
-            
+
 
         }, 2000)
     }, 3000)
@@ -89,10 +104,11 @@ function listImages() {
 function renderGallery(resp){
     let images = JSON.parse(resp);
     let content = document.querySelector(".gallery");
-    
 
-    if (images.length == 0){
-        content.innerHTML = "Your Gallery is empty. Upload Images to populate it!";
+
+    if (!Array.isArray(images) || images.length == 0){
+        imagecount = 0;
+        content.textContent = "Your Gallery is empty. Upload Images to populate it!";
         return;
     }
 
@@ -103,26 +119,35 @@ function renderGallery(resp){
 
     imagecount = images.length;
 
-    content.innerHTML = "";
+    content.textContent = "";
 
     images.forEach(img => {
         let div = document.createElement("div");
         div.classList.add("frame");
         let p = document.createElement("p");
-        p.innerHTML = img.name;
+        p.textContent = img.name;
 
         let a = document.createElement("a");
-        a.href = img.original;
+        let origUrl = safeImageUrl(img.original);
+        if (origUrl) {
+            a.href = origUrl;
+        }
 
         let i = document.createElement("img");
-        i.src = img.thumbnail;
-        a.appendChild(i)
-        a.appendChild(p)
+        let thumbUrl = safeImageUrl(img.thumbnail);
+        if (thumbUrl) {
+            i.src = thumbUrl;
+        }
+        a.appendChild(i);
+        a.appendChild(p);
         div.appendChild(a);
 
         let btn = document.createElement("button");
-        btn.classList.add("delete-btn")
-        btn.innerHTML = "<span class=\"material-icons\">delete</span>";
+        btn.classList.add("delete-btn");
+        let icon = document.createElement("span");
+        icon.classList.add("material-icons");
+        icon.textContent = "delete";
+        btn.appendChild(icon);
         btn.id = img.name;
         btn.addEventListener("click", deleteImage);
         div.appendChild(btn);
@@ -134,14 +159,14 @@ function renderGallery(resp){
 
 function deleteImage(e){
     console.log("delete" );
-    let id = e.currentTarget.id
+    let id = e.currentTarget.id;
 
     var xmlhttp = new XMLHttpRequest();
 
     xmlhttp.onreadystatechange = function() {
         if (xmlhttp.readyState == XMLHttpRequest.DONE) {   // XMLHttpRequest.DONE == 4
            if (xmlhttp.status == 204) {
-                sendAlert("Image Deleted.");  
+                sendAlert("Image Deleted.");
                 listImages();
            }
            else if (xmlhttp.status == 400) {
@@ -154,7 +179,7 @@ function deleteImage(e){
         }
     };
 
-    xmlhttp.open("DELETE", basepath+"/"+ id, true);
+    xmlhttp.open("DELETE", basepath + "/" + encodeURIComponent(id), true);
     xmlhttp.send();
 }
 
@@ -169,22 +194,22 @@ function uploadImage(e){
         alert('No image indicated');
         return;
     }
-    
-    form.append("myFile", photo);                                
+
+    form.append("myFile", photo);
 
     xmlhttp.onreadystatechange = function() {
         if (xmlhttp.readyState == XMLHttpRequest.DONE) {   // XMLHttpRequest.DONE == 4
            if (xmlhttp.status == 201) {
-               // Waiting on Cloud Function to modify the images. 
-               sendAlert("Processing image!");  
+               // Waiting on Cloud Function to modify the images.
+               sendAlert("Processing image!");
                setTimeout(listImages, 2000);
            }
-           else if (xmlhttp.status == 500) {
+           else if (xmlhttp.status == 400 || xmlhttp.status == 500) {
             let msg = JSON.parse(xmlhttp.response);
-            if (msg.error.includes("invalid image type")) {
+            if (msg.error && msg.error.includes("invalid image type")) {
                 sendError(msg.error);
             } else {
-                sendError(msg.error);
+                sendError(msg.error || "Upload failed");
             }
            }
            else {

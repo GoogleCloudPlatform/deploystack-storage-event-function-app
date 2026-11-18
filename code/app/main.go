@@ -17,9 +17,12 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
+	"mime/multipart"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/gorilla/handlers"
@@ -27,6 +30,18 @@ import (
 )
 
 var cs CloudStorage
+
+var allowedImageMIMETypes = []string{"image/png", "image/jpeg", "image/gif"}
+
+var blockedFilenameExtensions = map[string]bool{
+	".html":  true,
+	".htm":   true,
+	".xhtml": true,
+	".svg":   true,
+	".xml":   true,
+	".js":    true,
+	".mjs":   true,
+}
 
 func main() {
 	port := os.Getenv("PORT")
@@ -48,7 +63,7 @@ func main() {
 
 	router := mux.NewRouter().StrictSlash(true)
 
-	router.HandleFunc("/api/v1/image", listHandler).Methods(http.MethodGet, http.MethodOptions)
+	router.HandleFunc("/api/v1/image", listHandler).Methods(http.MethodGet)
 	router.HandleFunc("/api/v1/image", createHandler).Methods(http.MethodPost)
 	router.HandleFunc("/api/v1/image/{id}", readHandler).Methods(http.MethodGet)
 	router.HandleFunc("/api/v1/image/{id}", deleteHandler).Methods(http.MethodDelete)
@@ -56,18 +71,21 @@ func main() {
 
 	router.PathPrefix("/").Handler(http.FileServer(http.Dir("./static/")))
 
-	headersOk := handlers.AllowedHeaders([]string{"X-Requested-With"})
-	originsOk := handlers.AllowedOrigins([]string{"*"})
-	methodsOk := handlers.AllowedMethods([]string{"GET", "HEAD", "POST", "PUT", "OPTIONS", "DELETE"})
+	var handler http.Handler = router
+	if allowedOrigin := strings.TrimSpace(os.Getenv("CORS_ALLOWED_ORIGIN")); allowedOrigin != "" && allowedOrigin != "*" {
+		headersOk := handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"})
+		originsOk := handlers.AllowedOrigins([]string{allowedOrigin})
+		methodsOk := handlers.AllowedMethods([]string{"GET", "HEAD", "POST", "PUT", "OPTIONS", "DELETE"})
+		handler = handlers.CORS(originsOk, headersOk, methodsOk)(router)
+	}
 
-	log.Fatal(http.ListenAndServe(":"+port, handlers.CORS(originsOk, headersOk, methodsOk)(router)))
+	log.Fatal(http.ListenAndServe(":"+port, handler))
 }
 
 func listHandler(w http.ResponseWriter, r *http.Request) {
 	fs, err := cs.List()
 	if err != nil {
 		writeErrorMsg(w, fmt.Errorf("failed to list files: %v", err))
-
 		return
 	}
 
@@ -78,11 +96,14 @@ func listHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, is, http.StatusOK)
-	return
 }
 
 func createHandler(w http.ResponseWriter, r *http.Request) {
-	r.ParseMultipartForm(10 << 20)
+	r.Body = http.MaxBytesReader(w, r.Body, 32<<20)
+	if err := r.ParseMultipartForm(10 << 20); err != nil {
+		writeErrorMsg(w, fmt.Errorf("error retrieving file: %v", err))
+		return
+	}
 	// FormFile returns the first file for the given key `myFile`
 	// it also returns the FileHeader so we can get the Filename,
 	// the Header and the size of the file
@@ -93,9 +114,13 @@ func createHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	mimemap := NewMimeMap([]string{"image/png", "image/jpeg", "image/gif"})
+	mimemap := NewMimeMap(allowedImageMIMETypes)
 
-	mimetype := handler.Header.Get("Content-Type")
+	mimetype, err := sniffContentType(file)
+	if err != nil {
+		writeErrorMsg(w, fmt.Errorf("error detecting file type: %v", err))
+		return
+	}
 
 	if !mimemap.Valid(mimetype) {
 		mimelist := mimemap.List()
@@ -103,13 +128,82 @@ func createHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := cs.Create(handler.Filename, file); err != nil {
+	filename, err := sanitizeFilename(handler.Filename)
+	if err != nil {
+		writeErrorMsg(w, err)
+		return
+	}
+
+	if err := cs.Create(filename, file); err != nil {
 		writeErrorMsg(w, fmt.Errorf("image couldn't be created: %v", err))
 		return
 	}
 
 	writeResponse(w, http.StatusCreated, "")
-	return
+}
+
+// sniffContentType determines the MIME type of an uploaded file from its
+// leading magic bytes rather than the client-supplied multipart header.
+// The file's read offset is reset to zero on return.
+func sniffContentType(f multipart.File) (string, error) {
+	buf := make([]byte, 512)
+	n, err := io.ReadFull(f, buf)
+	if err != nil && err != io.EOF && err != io.ErrUnexpectedEOF {
+		return "", err
+	}
+	if _, err := f.Seek(0, io.SeekStart); err != nil {
+		return "", err
+	}
+	if n == 0 {
+		return "application/octet-stream", nil
+	}
+	return http.DetectContentType(buf[:n]), nil
+}
+
+// sanitizeFilename strips directory components and rejects empty, traversal,
+// hidden, control-character, or HTML/URL-metacharacter filenames.
+func sanitizeFilename(raw string) (string, error) {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" || strings.Contains(trimmed, "..") {
+		return "", fmt.Errorf("invalid filename")
+	}
+	normalized := strings.ReplaceAll(trimmed, "\\", "/")
+	name := strings.TrimSpace(filepath.Base(normalized))
+	if name == "" || name == "." || name == ".." || name == "/" || strings.HasPrefix(name, ".") || len(name) > 255 {
+		return "", fmt.Errorf("invalid filename")
+	}
+	for _, r := range name {
+		if r < 0x20 || r == 0x7f {
+			return "", fmt.Errorf("invalid filename")
+		}
+		switch r {
+		case '/', '\\', '<', '>', '"', '\'', '&', '`', '?', '#', '%':
+			return "", fmt.Errorf("invalid filename")
+		}
+	}
+	ext := strings.ToLower(filepath.Ext(name))
+	if blockedFilenameExtensions[ext] {
+		return "", fmt.Errorf("invalid filename extension: %s", ext)
+	}
+	return name, nil
+}
+
+// validateImageID ensures an image identifier is a safe single path segment.
+func validateImageID(id string) error {
+	trimmed := strings.TrimSpace(id)
+	if trimmed == "" || id == "." || id == ".." || strings.Contains(id, "..") || len(id) > 255 {
+		return fmt.Errorf("invalid image id")
+	}
+	for _, r := range id {
+		if r < 0x20 || r == 0x7f {
+			return fmt.Errorf("invalid image id")
+		}
+		switch r {
+		case '/', '\\', '<', '>', '"', '\'', '&', '`', '?', '#', '%':
+			return fmt.Errorf("invalid image id")
+		}
+	}
+	return nil
 }
 
 type MimeMap map[string]bool
@@ -139,7 +233,16 @@ func (m MimeMap) List() string {
 
 func updateHandler(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
-	r.ParseMultipartForm(10 << 20)
+	if err := validateImageID(id); err != nil {
+		writeErrorMsg(w, err)
+		return
+	}
+
+	r.Body = http.MaxBytesReader(w, r.Body, 32<<20)
+	if err := r.ParseMultipartForm(10 << 20); err != nil {
+		writeErrorMsg(w, fmt.Errorf("error retrieving file: %v", err))
+		return
+	}
 	// FormFile returns the first file for the given key `myFile`
 	// it also returns the FileHeader so we can get the Filename,
 	// the Header and the size of the file
@@ -150,27 +253,49 @@ func updateHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
+	mimemap := NewMimeMap(allowedImageMIMETypes)
+
+	mimetype, err := sniffContentType(file)
+	if err != nil {
+		writeErrorMsg(w, fmt.Errorf("error detecting file type: %v", err))
+		return
+	}
+
+	if !mimemap.Valid(mimetype) {
+		mimelist := mimemap.List()
+		writeErrorMsg(w, fmt.Errorf("invalid image type, want one of %s got : %s", mimelist, mimetype))
+		return
+	}
+
+	filename, err := sanitizeFilename(handler.Filename)
+	if err != nil {
+		writeErrorMsg(w, err)
+		return
+	}
+
 	if err := cs.Delete(id); err != nil {
 		writeErrorMsg(w, fmt.Errorf("error replacing file: %s", err))
 		return
 	}
 
-	if err := cs.Create(handler.Filename, file); err != nil {
+	if err := cs.Create(filename, file); err != nil {
 		writeErrorMsg(w, fmt.Errorf("image couldn't be created: %v", err))
 		return
 	}
 
 	writeResponse(w, http.StatusOK, "")
-	return
 }
 
 func readHandler(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
+	if err := validateImageID(id); err != nil {
+		writeErrorMsg(w, err)
+		return
+	}
 
 	fs, err := cs.Read(id)
 	if err != nil {
 		writeErrorMsg(w, fmt.Errorf("failed to read files %s: %v", id, err))
-
 		return
 	}
 
@@ -189,6 +314,10 @@ func readHandler(w http.ResponseWriter, r *http.Request) {
 
 func deleteHandler(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
+	if err := validateImageID(id); err != nil {
+		writeErrorMsg(w, err)
+		return
+	}
 
 	if err := cs.Delete(id); err != nil {
 		writeErrorMsg(w, err)
@@ -206,32 +335,34 @@ type JSONProducer interface {
 }
 
 func writeJSON(w http.ResponseWriter, j JSONProducer, status int) {
-	json, err := j.JSON()
+	jsonStr, err := j.JSON()
 	if err != nil {
 		writeErrorMsg(w, err)
 		return
 	}
-	writeResponse(w, status, json)
-	return
+	writeResponse(w, status, jsonStr)
 }
 
 func writeErrorMsg(w http.ResponseWriter, err error) {
-	s := fmt.Sprintf("{\"error\":\"%s\"}", err)
-	writeResponse(w, http.StatusInternalServerError, s)
-	return
+	b, marshalErr := json.Marshal(struct {
+		Error string `json:"error"`
+	}{Error: err.Error()})
+	if marshalErr != nil {
+		writeResponse(w, http.StatusInternalServerError, `{"error":"internal server error"}`)
+		return
+	}
+	writeResponse(w, http.StatusInternalServerError, string(b))
 }
 
 func writeResponse(w http.ResponseWriter, status int, msg string) {
 	if status != http.StatusOK {
-		weblog(fmt.Sprintf(msg))
+		weblog(msg)
 	}
 
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type,access-control-allow-origin, access-control-allow-headers")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(status)
 	w.Write([]byte(msg))
-
-	return
 }
 
 func weblog(msg string) {
